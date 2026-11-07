@@ -18,7 +18,8 @@ from datetime import datetime, timedelta, timezone
 
 from flask import (Flask, Response, abort, flash, g, jsonify, redirect,
                    render_template, request, session, url_for)
-from reportlab.graphics.barcode import qrencoder
+import qrcode
+import qrcode.image.svg
 from werkzeug.security import check_password_hash, generate_password_hash
 
 APP_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -337,27 +338,9 @@ def decide_request(r, approved, by, via):
 
 # --------------------------------------------------------------------------- QR
 def qr_svg(data):
-    qr = qrencoder.QRCode(None, qrencoder.QRErrorCorrectLevel.M)
-    qr.addData(data)
-    qr.make()
-    n, quiet = qr.getModuleCount(), 3
-    path = []
-    for row in range(n):
-        col = 0
-        while col < n:
-            if qr.isDark(row, col):
-                start = col
-                while col < n and qr.isDark(row, col):
-                    col += 1
-                path.append(f"M{start + quiet} {row + quiet}h{col - start}v1h-{col - start}z")
-            else:
-                col += 1
-    size = n + 2 * quiet
-    return (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {size} {size}" '
-            f'shape-rendering="crispEdges" role="img" aria-label="HealthTag QR code">'
-            f'<rect width="{size}" height="{size}" fill="#fff"/>'
-            f'<path d="{"".join(path)}" fill="#0B2545"/></svg>')
-
+    factory = qrcode.image.svg.SvgPathImage
+    img = qrcode.make(data, image_factory=factory, box_size=10)
+    return img.to_string(encoding="unicode")
 
 @app.route("/qr/<pid>.svg")
 def qr_image(pid):
