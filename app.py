@@ -512,10 +512,9 @@ def request_full_history(pid):
     actor = actor_label(pro)
     log_event(pid, 2, actor, "requested the full history", f"Waiting for {p['contact_name']} to approve")
     send_message(pid, "contact", f"{p['contact_name']} ({p['contact_phone']})",
-                 f"HealthTag: {actor} is asking to see {p['name']}'s full medical history. "
-                 f"Your one-time code is {otp}. Tap the link to approve or deny.",
-                 link=f"{BASE_URL}/approve/{rid}",
-                 phone=p["contact_phone"])
+             f"HealthTag: {actor} wants {p['name']}'s history. Code {otp}. Approve/deny:",
+             link=f"{BASE_URL}/approve/{rid}",
+             phone=p["contact_phone"])
     notify_owner(pid, f"{actor} requested your full history. Waiting for {p['contact_name']} to approve.")
     return redirect(url_for("request_wait", rid=rid))
 
