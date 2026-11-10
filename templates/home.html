@@ -22,8 +22,8 @@
   <ol class="steps">
     <li>Scan the QR code with a phone, or open the link under it. You see only "Call 108" and the contact's number, with no medical data.</li>
     <li>Sign in as a verified responder (ID <b>H-1001</b>, PIN <b>1234</b>) and scan again. The emergency card opens at once.</li>
+    <li>Tap <b>Request full history</b>. The emergency contact receives a text with a code and an approval link.</li>
     <li>Tap <b>Request full history</b>. Then open the <a href="{{ url_for('inbox') }}">demo inbox</a>: the emergency contact has received a code and an approval link.</li>
-    <li>Approve on the link, or type the code into the responder's screen. The full history unlocks for 30 minutes.</li>
     <li>Open the owner dashboard to see who looked, who approved, and every notification.</li>
   </ol>
   <div class="demo-links">
@@ -31,6 +31,7 @@
     <a class="btn ghost" href="{{ url_for('owner', pid=demo_id, k=demo_key) }}">Owner dashboard</a>
     <a class="btn ghost" href="{{ url_for('card', pid=demo_id, k=demo_key) }}">Printable card</a>
     <a class="btn ghost" href="{{ url_for('inbox') }}">Demo inbox</a>
+    
   </div>
 </section>
 {% endblock %}

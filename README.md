@@ -1,4 +1,4 @@
-# HealthTag prototype (Team Cognix, MAITRON 2026)
+# HealthTag prototype (Team Schrodinger's, Vivaan X 2026)
 
 A working demo of the three-tier emergency access flow from the PPT.
 

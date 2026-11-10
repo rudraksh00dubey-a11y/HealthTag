@@ -10,6 +10,7 @@ Every access is written to an audit log and the owner is notified.
 SMS/WhatsApp delivery is SIMULATED: messages appear on the /inbox page.
 """
 import os
+import requests
 import re
 import secrets
 import socket
@@ -32,6 +33,12 @@ IST = timezone(timedelta(hours=5, minutes=30))
 REQUEST_TTL_MIN = 15      # how long a pending approval request stays valid
 ACCESS_TTL_MIN = 30       # how long full-history access lasts once approved
 MAX_OTP_ATTEMPTS = 3
+
+# --- Fast2SMS (real SMS to the emergency contact) ---
+FAST2SMS_API_KEY = os.environ.get("FAST2SMS_API_KEY", "")
+FAST2SMS_URL = "https://www.fast2sms.com/dev/bulkV2"
+FAST2SMS_ROUTE = os.environ.get("FAST2SMS_ROUTE", "q")   # q = Quick SMS, no DLT
+SMS_ENABLED = bool(FAST2SMS_API_KEY)
 
 BLOOD_GROUPS = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-", "Not sure"]
 TEXT_FIELDS = ["name", "age", "blood_group", "allergies", "conditions", "medications",
@@ -253,9 +260,36 @@ def log_once(pid, tier, actor, action, detail="", minutes=5):
     log_event(pid, tier, actor, action, detail)
     return True
 
+def send_sms(phone, text):
+    """Send a real SMS through Fast2SMS. Returns (ok, info). Never raises."""
+    if not SMS_ENABLED:
+        return False, "SMS off (no FAST2SMS_API_KEY)"
+    number = re.sub(r"\D", "", phone or "")[-10:]      # +919800000001 -> 9800000001
+    if len(number) != 10:
+        return False, "invalid phone number"
+    try:
+        resp = requests.post(
+            FAST2SMS_URL,
+            headers={"authorization": FAST2SMS_API_KEY,
+                     "Content-Type": "application/json"},
+            json={"route": FAST2SMS_ROUTE, "message": text,
+                  "numbers": number, "flash": 0},
+            timeout=8,
+        )
+        data = resp.json()
+    except (requests.RequestException, ValueError) as exc:
+        return False, f"network error: {exc}"
+    if data.get("return") is True:
+        return True, data.get("request_id", "sent")
+    return False, str(data.get("message", data))
 
-def send_message(pid, kind, to_label, body, link=""):
-    """Simulated SMS / app notification. Shown on /inbox."""
+
+def send_message(pid, kind, to_label, body, link="", phone=""):
+    """Inbox entry always; real SMS too when kind == 'contact' and a phone is given."""
+    if kind == "contact" and phone:
+        sms_text = f"{body} {link}".strip()
+        ok, info = send_sms(phone, sms_text)
+        to_label += " · SMS sent" if ok else f" · SMS not sent ({info})"
     db().execute("INSERT INTO messages (ts, profile_id, kind, to_label, body, link) VALUES (?,?,?,?,?,?)",
                  (iso(), pid, kind, to_label, body, link))
     db().commit()
@@ -330,7 +364,8 @@ def decide_request(r, approved, by, via):
                               f"Access lasts {ACCESS_TTL_MIN} minutes.")
         send_message(p["id"], "contact", f"{p['contact_name']} ({p['contact_phone']})",
                      f"HealthTag: you approved {who}. They can see {p['name']}'s medical history "
-                     f"(past conditions, notes and hospital records) for {ACCESS_TTL_MIN} minutes.")
+                     f"(past conditions, notes and hospital records) for {ACCESS_TTL_MIN} minutes.",
+                     phone=p["contact_phone"])
     else:
         log_event(p["id"], 2, by, "denied full history access", f"Request from {who}")
         notify_owner(p["id"], f"Full history access for {who} was denied ({by}).")
@@ -477,9 +512,9 @@ def request_full_history(pid):
     actor = actor_label(pro)
     log_event(pid, 2, actor, "requested the full history", f"Waiting for {p['contact_name']} to approve")
     send_message(pid, "contact", f"{p['contact_name']} ({p['contact_phone']})",
-                 f"HealthTag: {actor} is asking to see {p['name']}'s full medical history. "
-                 f"Your one-time code is {otp}. Tap the link to approve or deny.",
-                 link=f"{BASE_URL}/approve/{rid}")
+             f"HealthTag: {actor} wants {p['name']}'s history. Code {otp}. Approve/deny:",
+             link=f"{BASE_URL}/approve/{rid}",
+             phone=p["contact_phone"])
     notify_owner(pid, f"{actor} requested your full history. Waiting for {p['contact_name']} to approve.")
     return redirect(url_for("request_wait", rid=rid))
 

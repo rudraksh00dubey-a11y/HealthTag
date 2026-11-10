@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}Your HealthTag{% endblock %}
+{% block content %}
+<h1 class="no-print">Your HealthTag is ready</h1>
+<p class="muted no-print">Print this card, keep it in your wallet, or save the image as a lock-screen wallpaper. Anyone can scan it, but what they see depends on who they are.</p>
+
+<div class="id-card">
+  <img src="{{ url_for('qr_image', pid=p.id) }}" alt="QR code for {{ p.name }}">
+  <div>
+    <p class="tag">HealthTag · scan in an emergency</p>
+    <h2>{{ p.name }}</h2>
+    <p class="fine" style="margin:0">Code {{ p.id }}</p>
+  </div>
+</div>
+
+<div class="actions no-print">
+  <button class="btn" onclick="window.print()" type="button">Print card</button>
+  <a class="btn teal" href="{{ url_for('owner', pid=p.id, k=k) }}">Open my dashboard</a>
+</div>
+<div class="widget-action-box" style="margin-top: 1.5rem; text-align: center;">
+  <p style="font-size: 0.9rem; color: #4a5568; margin-bottom: 0.75rem;">
+    <strong>Use on Lock Screen / Widget</strong>
+  </p>
+
+  <div style="display: flex; gap: 0.5rem; justify-content: center; flex-wrap: wrap;">
+    <!-- 1. Direct Image Download Button -->
+    <a href="{{ url_for('qr_png', pid=p['id'], download=1) }}" 
+       class="btn" 
+       style="background: #0B2545; color: #fff; padding: 0.5rem 1rem; border-radius: 6px; text-decoration: none; font-size: 0.85rem;">
+      ⬇ Download QR (PNG)
+    </a>
+
+    <!-- 2. Copy Widget Link Button (For Widgy / Lock Screen widget apps) -->
+    <button type="button" 
+            onclick="copyWidgetLink(`{{ url_for('qr_png', pid=p.id, _external=True) }}`)"
+            id="copyBtn"
+            class="btn" 
+            style="background: #e2e8f0; color: #1a202c; border: 1px solid #cbd5e1; padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; font-size: 0.85rem;">
+      🔗 Copy Widget Image URL
+    </button>
+  </div>
+</div>
+
+<script>
+function copyWidgetLink(url) {
+  navigator.clipboard.writeText(url).then(() => {
+    const btn = document.getElementById('copyBtn');
+    const originalText = btn.innerText;
+    btn.innerText = '✓ Copied!';
+    btn.style.background = '#dcfce7';
+    btn.style.color = '#15803d';
+    setTimeout(() => {
+      btn.innerText = originalText;
+      btn.style.background = '#e2e8f0';
+      btn.style.color = '#1a202c';
+    }, 2000);
+  }).catch(err => {
+    prompt('Copy your widget QR URL:', url);
+  });
+}
+</script>
+<br>
+<div class="panel locked no-print">
+  <h3>Save your private link</h3>
+  <p class="fine">This link opens your dashboard, where you see who scanned your code and who approved access. Keep it to yourself.</p>
+  <code style="word-break:break-all;font-size:.85rem">{{ BASE_URL }}{{ url_for('owner', pid=p.id, k=k) }}</code>
+</div>
+{% endblock %}
